@@ -28,7 +28,7 @@ def summarize_review_with_gemini(cleaned_text: str) -> str:
         # Explicitly use the stable, free-tier friendly model
         # We avoid listing models dynamically because it might pick up experimental models (like gemini-2.5-pro-exp)
         # which have very strict quotas.
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
         
         prompt = f"""You are a helpful assistant that summarizes customer reviews concisely.
 
