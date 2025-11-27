@@ -26,19 +26,34 @@ def summarize_review_with_gemini(cleaned_text: str) -> str:
         return "⚠️ Gemini API key not configured. Set GEMINI_API_KEY in environment or Streamlit secrets."
     
     try:
-        # Try different model names in order of preference
-        model_names = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-pro']
-        model = None
+        # List available models to find the correct one
+        available_models = []
+        try:
+            for model in genai.list_models():
+                if 'generateContent' in model.supported_generation_methods:
+                    available_models.append(model.name)
+        except Exception:
+            pass
         
-        for model_name in model_names:
-            try:
-                model = genai.GenerativeModel(model_name)
-                break
-            except Exception:
-                continue
+        # Try models in order of preference
+        model_to_use = None
+        if available_models:
+            # Use the first available model that supports generateContent
+            model_to_use = available_models[0]
+        else:
+            # Fallback to trying common names
+            for model_name in ['models/gemini-1.5-flash', 'models/gemini-pro', 'gemini-1.5-flash', 'gemini-pro']:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    model_to_use = model_name
+                    break
+                except Exception:
+                    continue
         
-        if model is None:
-            return "⚠️ Could not initialize any Gemini model. Please check your API key and package version."
+        if not model_to_use:
+            return "⚠️ Could not find any compatible Gemini model. Please check your API key."
+        
+        model = genai.GenerativeModel(model_to_use)
         
         prompt = f"""You are a helpful assistant that summarizes customer reviews concisely.
 
