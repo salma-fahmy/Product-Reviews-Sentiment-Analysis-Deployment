@@ -16,34 +16,63 @@ GEMINI_API_KEY = "AIzaSyCnF-UaGJFoDLV8ANieBcfbePLUFmJv-yM"
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
+def get_working_gemini_model():
+    """
+    Automatically finds a valid model that supports generateContent.
+    Avoids 404 errors permanently.
+    """
+
+    try:
+        models = genai.list_models()
+        valid_models = []
+
+        for m in models:
+            if hasattr(m, "supported_generation_methods"):
+                if "generateContent" in m.supported_generation_methods:
+                    valid_models.append(m.name)
+
+        if not valid_models:
+            return None
+
+        # Prefer modern/lightweight models first
+        priority = ["flash", "lite", "pro", "gemini"]
+
+        for p in priority:
+            for m in valid_models:
+                if p in m.lower():
+                    return m
+
+        return valid_models[0]
+
+    except:
+        return None
 
 def summarize_review_with_gemini(cleaned_text: str) -> str:
-    """
-    Use Gemini API to summarize the review after cleaning.
-    """
     if not GEMINI_API_KEY:
-        return "⚠️ Gemini API key not configured. Set GEMINI_API_KEY in environment or Streamlit secrets."
-    
+        return "⚠️ Gemini API key not configured."
+
     try:
-        # Explicitly use the stable, free-tier friendly model
-        # We avoid listing models dynamically because it might pick up experimental models (like gemini-2.5-pro-exp)
-        # which have very strict quotas.
-        model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
-        
-        prompt = f"""You are a helpful assistant that summarizes customer reviews concisely.
+        model_name = get_working_gemini_model()
 
-Review: {cleaned_text}
+        if not model_name:
+            return "❌ No Gemini model available that supports generateContent with this API key."
 
-Provide a brief summary explaining what the customer thinks, focusing on the main points (e.g., taste, price, quality, service).
-Keep it short and natural. Example format: "The customer is disappointed because of taste and overprice."
+        model = genai.GenerativeModel(model_name)
 
-Summary:"""
-        
+        prompt = f"""
+        Summarize the following customer review briefly:
+
+        Review: {cleaned_text}
+
+        Summary:
+        """
+
         response = model.generate_content(prompt)
         return response.text.strip()
-    
+
     except Exception as e:
         return f"⚠️ Error generating summary: {e}"
+
 
 
 # ---------------------------- Text Preprocessing ----------------------------
