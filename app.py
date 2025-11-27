@@ -60,16 +60,124 @@ DROPBOX_URL = "https://www.dropbox.com/scl/fi/4r5mrc3tcrthzvstjpwjn/roberta_pipe
 pipeline = None
 MODEL_LOADED = False
 
+st.sidebar.title("Model Status")
+
 try:
     response = requests.get(DROPBOX_URL)
     response.raise_for_status()
     pipeline = pickle.load(BytesIO(response.content))
     MODEL_LOADED = True
+    st.sidebar.success("✅ Model loaded successfully!")
 except Exception as e:
-    st.error(f"Failed to load model from Dropbox: {e}")
+    st.sidebar.error(f"❌ Failed to load model from Dropbox: {e}")
     MODEL_LOADED = False
 
-# ---------------------------- Streamlit UI ----------------------------
-st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
+# ---------------------------- Streamlit Page Setup ----------------------------
+st.set_page_config(
+    page_title="Product Reviews Sentiment Analysis",
+    layout="wide"
+)
 
-# باقي الكود زي ما هو عندك، بدون تغيير أي شيء في الـ Streamlit UI أو الموديل inference
+page_bg = """
+<style>
+.stApp {
+    background: url('https://i.pinimg.com/736x/8a/4c/31/8a4c3184c5ae66e9f090f49db6bd445a.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: #111827;
+}
+h1, h2, h3, h4, h5, h6 { color: #111827 !important; }
+.st-bq, .st-cy, .st-co, .stText, .stMarkdown { color: #111827 !important; }
+[data-testid="stSidebar"] { background-color: rgba(255, 255, 255, 0.5) !important; font-size: 18px !important; font-weight: bold !important; color: #111827 !important; }
+button[title="Collapse"] svg, button[title="Expand"] svg { color: #111827 !important; }
+.stButton>button { background: linear-gradient(90deg, #3B82F6, #60A5FA); color: black; font-weight: bold; font-size: 18px; border-radius: 10px; padding: 0.6em 1.2em; transition: 0.2s; cursor: pointer; }
+.stButton>button:hover { background: linear-gradient(90deg, #60A5FA, #93C5FD); transform: scale(1.03); }
+.stSelectbox, .stNumberInput, .stTextInput, .stDataFrame, .stFileUploader { background-color: rgba(255, 255, 255, 0.7); border-radius: 10px; padding: 10px; color: #111827 !important; }
+.stForm { border: 1px solid rgba(0,0,0,0.15); border-radius: 10px; padding: 10px; }
+hr { border-top: 1px solid rgba(0,0,0,0.3) !important; }
+</style>
+"""
+st.markdown(page_bg, unsafe_allow_html=True)
+
+st.markdown("<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#111827;'>Analyze single text reviews or batch CSV files.</p>", unsafe_allow_html=True)
+st.markdown("---")
+
+# ---------------------------- Sidebar ----------------------------
+input_mode = st.sidebar.radio("Select input mode:", ["Single Text", "Batch CSV"])
+
+# ---------------------------- Single Text Mode ----------------------------
+if MODEL_LOADED and input_mode == "Single Text":
+    st.subheader("Single Review Prediction")
+    text_input = st.text_area("Enter a review:", height=120)
+
+    if st.button("🔍 Predict"):
+        if not text_input.strip():
+            st.warning("Please enter text before predicting.")
+        else:
+            try:
+                result = pipeline.predict_single(text_input)
+                pred_label = getattr(pipeline, "id2label", DEFAULT_ID2LABEL).get(
+                    result["pred_id"], str(result["pred_id"])
+                )
+                st.write("**Prediction ID:**", result["pred_id"])
+                st.write("**Predicted Label:**", pred_label)
+            except Exception as e:
+                st.error(f"Prediction failed: {e}")
+elif not MODEL_LOADED:
+    st.warning("The model is not loaded. Please check Dropbox link or network connection.")
+
+# ---------------------------- Batch CSV Mode ----------------------------
+if MODEL_LOADED and input_mode == "Batch CSV":
+    st.subheader("Batch Prediction (CSV Upload)")
+    csv_file = st.file_uploader("Upload a CSV file", type=["csv"])
+    text_column = "Text"
+    batch_size = 64
+
+    if csv_file is not None:
+        try:
+            df = pd.read_csv(csv_file)
+            st.write("### Preview")
+            st.dataframe(df.head())
+
+            if text_column not in df.columns:
+                st.error(f"Column '{text_column}' not found in uploaded file.")
+            else:
+                if st.button("🚀 Run Batch Prediction"):
+                    texts = df[text_column].astype(str).tolist()
+                    predictions = []
+
+                    for i in range(0, len(texts), batch_size):
+                        batch = texts[i:i + batch_size]
+                        for t in batch:
+                            if t.strip() == "" or t.lower() == "nan":
+                                predictions.append("empty")
+                            else:
+                                pred = pipeline.predict_single(t)
+                                label = DEFAULT_ID2LABEL.get(pred["pred_id"], str(pred["pred_id"]))
+                                predictions.append(label)
+
+                    df["pred_label"] = predictions
+                    st.success("Batch prediction completed successfully.")
+                    st.dataframe(df.head(10))
+
+                    counts = df["pred_label"].value_counts()
+                    st.info("### Prediction Summary")
+                    all_labels = list(DEFAULT_ID2LABEL.values()) + ["empty"]
+                    col1, col2 = st.columns(2)
+                    for i, label in enumerate(all_labels):
+                        text = f"{label.capitalize()}: {counts.get(label, 0)}"
+                        if i % 2 == 0:
+                            col1.write(text)
+                        else:
+                            col2.write(text)
+
+                    csv_data = df.to_csv(index=False).encode("utf-8")
+                    st.download_button("Download Results CSV", data=csv_data, file_name="sentiment_predictions.csv")
+        except Exception as e:
+            st.error(f"Error processing file: {e}")
+
+# ---------------------------- Footer ----------------------------
+st.markdown("---")
+st.caption("💡 This dashboard helps you understand the sentiment behind customer product reviews.")
