@@ -161,6 +161,9 @@ pipeline = load_pipeline()
 # ---------------------------- Streamlit Page Setup ----------------------------
 st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
 
+# ---------------------------- Streamlit Page Setup ----------------------------
+st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
+
 page_bg = """
 <style>
 .stApp {
@@ -173,11 +176,20 @@ h1, h2, h3, h4 { color: #111827 !important; }
 [data-testid="stSidebar"] {
     background-color: rgba(255,255,255,0.5) !important;
 }
+
+/* Text color black for all texts */
+body, .stText, .stMarkdown, .css-1d391kg, .stButton, .stTextInput label, .stTextArea label {
+    color: #000000 !important;
+}
+
+/* Make labels bold */
+.stTextInput label, .stTextArea label, .stRadio label {
+    font-weight: bold !important;
+}
 </style>
 """
 
 st.markdown(page_bg, unsafe_allow_html=True)
-
 
 # ---------------------------- Header ----------------------------
 st.markdown("<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</h1>", unsafe_allow_html=True)
@@ -296,3 +308,4 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
