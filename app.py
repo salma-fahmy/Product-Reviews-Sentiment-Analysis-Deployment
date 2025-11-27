@@ -103,14 +103,15 @@ h1,h2,h3,h4,h5,h6{color:#111827 !important;}
 .stButton>button:hover{background:linear-gradient(90deg,#60A5FA,#93C5FD); transform:scale(1.03);}
 .stSelectbox,.stNumberInput,.stTextInput,.stDataFrame,.stFileUploader{background-color: rgba(255,255,255,0.7); border-radius:10px; padding:10px; color:#111827 !important;}
 .stForm{border:1px solid rgba(0,0,0,0.15); border-radius:10px; padding:10px;}
-hr{border-top:1px solid rgba(0,0,0,0.3) !important;}
 </style>
 """
 st.markdown(page_bg, unsafe_allow_html=True)
 
 st.markdown("<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#111827;'>Analyze single text reviews or batch CSV files.</p>", unsafe_allow_html=True)
-st.markdown("---")
+
+# Use st.divider() instead of st.markdown("---") to avoid SyntaxError
+st.divider()
 
 # ---------------------------- Sidebar ----------------------------
 st.sidebar.title("Configuration")
@@ -170,5 +171,6 @@ elif input_mode == "Batch CSV" and pipeline:
                         (col1 if i % 2 == 0 else col2).write(text)
                     st.download_button("Download Results CSV", df.to_csv(index=False).encode("utf-8"), "sentiment_predictions.csv")
 
-st.markdown("---")
+# Footer
+st.divider()
 st.caption("💡 This dashboard helps you understand the sentiment behind customer product reviews.")
