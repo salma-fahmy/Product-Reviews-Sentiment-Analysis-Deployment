@@ -12,7 +12,9 @@ import google.generativeai as genai
 # ---------------------------- Configure Gemini API ----------------------------
 # Configure your Gemini API key
 # You can set it as an environment variable or use Streamlit secrets
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY", "")
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY", "")
+GEMINI_API_KEY = "AIzaSyCnF-UaGJFoDLV8ANieBcfbePLUFmJv-yM"
+
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
