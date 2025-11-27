@@ -232,7 +232,7 @@ if input_mode == "Single Text" and pipeline:
                 
                 # Generate AI summary using Gemini
                 st.write("---")
-                st.write("### 🤖 AI-Generated Summary")
+                st.write("Summary")
                 
                 with st.spinner("Generating summary with Gemini..."):
                     summary = summarize_review_with_gemini(cleaned_text)
