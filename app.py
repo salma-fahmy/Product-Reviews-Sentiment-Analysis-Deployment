@@ -1,13 +1,12 @@
 import os
 import re
 import pickle
-import requests
 from typing import Dict, Any
 
 import streamlit as st
 import pandas as pd
 import torch
-
+import gdown
 
 # ============================ Text Preprocessing ============================
 def clean_text(text: str) -> str:
@@ -37,14 +36,12 @@ def clean_text(text: str) -> str:
 
     return text
 
-
 # ============================ Inference Pipeline ============================
 class InferencePipeline:
     """
     Pipeline containing text cleaning, tokenization, and model inference.
     Used for sentiment classification of product reviews.
     """
-
     def __init__(self, model, tokenizer, clean_fn=clean_text, max_length: int = 128):
         self.model = model
         self.tokenizer = tokenizer
@@ -69,40 +66,25 @@ class InferencePipeline:
 
         return {"pred_id": pred_id}
 
-
-# Default sentiment label mapping
+# ============================ Default Labels ============================
 DEFAULT_ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
 
-
 # ============================ Download Model (Google Drive) ============================
-MODEL_URL = "https://drive.google.com/uc?export=download&id=1Aggf2Hl1gEIE99W0T6I93lgDcTVRxI1N"
+MODEL_URL = "https://drive.google.com/uc?id=1Aggf2Hl1gEIE99W0T6I93lgDcTVRxI1N"
 MODEL_FILENAME = "roberta_pipeline.pkl"
 pipeline = None
 
-
 def download_model(url, filename):
-    """
-    Download PKL model from Google Drive if not already downloaded.
-    """
+    """Download PKL model from Google Drive using gdown if not already downloaded."""
     if os.path.exists(filename):
         return True
-
     try:
         st.info("Downloading model, please wait...")
-        response = requests.get(url, allow_redirects=True)
-
-        if response.status_code == 200:
-            with open(filename, "wb") as f:
-                f.write(response.content)
-            return True
-        else:
-            st.error("Failed to download model from Google Drive.")
-            return False
-
+        gdown.download(url, filename, quiet=False)
+        return os.path.exists(filename)
     except Exception as e:
         st.error(f"Download error: {e}")
         return False
-
 
 # ============================ Load Model ============================
 MODEL_LOADED = False
@@ -118,7 +100,6 @@ if download_model(MODEL_URL, MODEL_FILENAME):
 else:
     st.error("Model not available.")
 
-
 # ============================ Streamlit Page Settings ============================
 st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
 
@@ -131,27 +112,22 @@ page_bg = """
     background-repeat: no-repeat;
     color: #111827;
 }
-
 h1, h2, h3, h4, h5, h6 {
     color: #111827 !important;
 }
-
 .st-bq, .st-cy, .st-co, .stText, .stMarkdown {
     color: #111827 !important;
 }
-
 [data-testid="stSidebar"] {
     background-color: rgba(255, 255, 255, 0.5) !important;
     font-size: 18px !important;
     font-weight: bold !important;
     color: #111827 !important;
 }
-
 button[title="Collapse"] svg,
 button[title="Expand"] svg {
     color: #111827 !important;
 }
-
 .stButton>button {
     background: linear-gradient(90deg, #3B82F6, #60A5FA);
     color: black;
@@ -162,43 +138,35 @@ button[title="Expand"] svg {
     transition: 0.2s;
     cursor: pointer;
 }
-
 .stButton>button:hover {
     background: linear-gradient(90deg, #60A5FA, #93C5FD);
     transform: scale(1.03);
 }
-
 .stSelectbox, .stNumberInput, .stTextInput, .stDataFrame, .stFileUploader {
     background-color: rgba(255, 255, 255, 0.7);
     border-radius: 10px;
     padding: 10px;
 }
-
 .stForm {
     border: 1px solid rgba(0,0,0,0.15);
     border-radius: 10px;
     padding: 10px;
 }
-
 hr {
     border-top: 1px solid rgba(0,0,0,0.3) !important;
 }
 </style>
 """
-
 st.markdown(page_bg, unsafe_allow_html=True)
-
 
 # ============================ Page Header ============================
 st.markdown("<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#111827;'>Analyze individual reviews or full CSV datasets.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-
 # ============================ Sidebar ============================
 st.sidebar.title("Configuration")
 input_mode = st.sidebar.radio("Select Input Mode:", ["Single Text", "Batch CSV"])
-
 
 # ============================ Single Text Prediction ============================
 if input_mode == "Single Text" and pipeline:
@@ -217,12 +185,10 @@ if input_mode == "Single Text" and pipeline:
             except Exception as e:
                 st.error(f"Prediction failed: {e}")
 
-
 # ============================ Batch CSV Mode ============================
 elif input_mode == "Batch CSV" and pipeline:
     st.subheader("Batch Prediction (CSV Upload)")
     csv_file = st.file_uploader("Upload CSV File", type=["csv"])
-
     text_column = "Text"
     batch_size = 64
 
@@ -241,7 +207,6 @@ elif input_mode == "Batch CSV" and pipeline:
 
                     for i in range(0, len(texts), batch_size):
                         batch = texts[i:i + batch_size]
-
                         for t in batch:
                             if t.strip() == "" or t.lower() == "nan":
                                 preds.append("empty")
@@ -250,13 +215,11 @@ elif input_mode == "Batch CSV" and pipeline:
                                 preds.append(DEFAULT_ID2LABEL.get(p["pred_id"]))
 
                     df["pred_label"] = preds
-
                     st.success("Batch prediction completed successfully.")
                     st.dataframe(df.head(10))
 
                     counts = df["pred_label"].value_counts()
                     st.info("### Prediction Summary")
-
                     col1, col2 = st.columns(2)
                     labels = ["negative", "neutral", "positive", "empty"]
 
@@ -273,7 +236,6 @@ elif input_mode == "Batch CSV" and pipeline:
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
-
 
 # ============================ Footer ============================
 st.markdown("---")
