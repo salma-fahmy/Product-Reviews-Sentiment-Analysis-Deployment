@@ -54,7 +54,7 @@ class InferencePipeline:
 
 DEFAULT_ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
 
-# ---------------------------- Download Model from Dropbox ----------------------------
+# ---------------------------- Load Serialized Model from Dropbox ------------
 MODEL_URL = "https://www.dropbox.com/scl/fi/4r5mrc3tcrthzvstjpwjn/roberta_pipeline.pkl?dl=1"
 MODEL_FILENAME = "roberta_pipeline.pkl"
 pipeline = None
@@ -87,8 +87,11 @@ if download_model(MODEL_URL, MODEL_FILENAME):
 else:
     st.error("Model not available.")
 
-# ---------------------------- Streamlit UI ----------------------------
-st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
+# ---------------------------- Streamlit Page Setup ----------------------------
+st.set_page_config(
+    page_title="Product Reviews Sentiment Analysis",
+    layout="wide"
+)
 
 page_bg = """
 <style>
@@ -109,6 +112,7 @@ st.markdown("<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</
 st.markdown("<p style='text-align:center; color:#111827;'>Analyze single text reviews or batch CSV files.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
+# ---------------------------- Sidebar ----------------------------
 st.sidebar.title("Configuration")
 input_mode = st.sidebar.radio("Select input mode:", ["Single Text", "Batch CSV"])
 
@@ -122,9 +126,9 @@ if input_mode == "Single Text" and pipeline:
         else:
             try:
                 result = pipeline.predict_single(text_input)
-                label = getattr(pipeline, "id2label", DEFAULT_ID2LABEL).get(result["pred_id"])
+                pred_label = getattr(pipeline, "id2label", DEFAULT_ID2LABEL).get(result["pred_id"])
                 st.write("**Prediction ID:**", result["pred_id"])
-                st.write("**Predicted Label:**", label)
+                st.write("**Predicted Label:**", pred_label)
             except Exception as e:
                 st.error(f"Prediction failed: {e}")
 
@@ -141,29 +145,30 @@ elif input_mode == "Batch CSV" and pipeline:
             st.write("### Preview")
             st.dataframe(df.head())
             if text_column not in df.columns:
-                st.error(f"Column '{text_column}' not found.")
-            elif st.button("🚀 Run Batch Prediction"):
-                texts = df[text_column].astype(str).tolist()
-                preds = []
-                for i in range(0, len(texts), batch_size):
-                    batch = texts[i:i+batch_size]
-                    for t in batch:
-                        if t.strip() == "" or t.lower() == "nan":
-                            preds.append("empty")
-                        else:
-                            pred = pipeline.predict_single(t)
-                            preds.append(DEFAULT_ID2LABEL.get(pred["pred_id"], str(pred["pred_id"])))
-                df["pred_label"] = preds
-                st.success("Batch prediction completed successfully.")
-                st.dataframe(df.head(10))
-                counts = df["pred_label"].value_counts()
-                st.info("### Prediction Summary")
-                col1, col2 = st.columns(2)
-                labels = list(DEFAULT_ID2LABEL.values()) + ["empty"]
-                for i, lbl in enumerate(labels):
-                    text = f"{lbl.capitalize()}: {counts.get(lbl,0)}"
-                    (col1 if i%2==0 else col2).write(text)
-                st.download_button("Download Results CSV", df.to_csv(index=False).encode("utf-8"), "sentiment_predictions.csv")
+                st.error(f"Column '{text_column}' not found in uploaded file.")
+            else:
+                if st.button("🚀 Run Batch Prediction"):
+                    texts = df[text_column].astype(str).tolist()
+                    predictions = []
+                    for i in range(0, len(texts), batch_size):
+                        batch = texts[i:i + batch_size]
+                        for t in batch:
+                            if t.strip() == "" or t.lower() == "nan":
+                                predictions.append("empty")
+                            else:
+                                pred = pipeline.predict_single(t)
+                                predictions.append(DEFAULT_ID2LABEL.get(pred["pred_id"], str(pred["pred_id"])))
+                    df["pred_label"] = predictions
+                    st.success("Batch prediction completed successfully.")
+                    st.dataframe(df.head(10))
+                    counts = df["pred_label"].value_counts()
+                    st.info("### Prediction Summary")
+                    all_labels = list(DEFAULT_ID2LABEL.values()) + ["empty"]
+                    col1, col2 = st.columns(2)
+                    for i, label in enumerate(all_labels):
+                        text = f"{label.capitalize()}: {counts.get(label, 0)}"
+                        (col1 if i % 2 == 0 else col2).write(text)
+                    st.download_button("Download Results CSV", df.to_csv(index=False).encode("utf-8"), "sentiment_predictions.csv")
 
 st.markdown("---")
 st.caption("💡 This dashboard helps you understand the sentiment behind customer product reviews.")
