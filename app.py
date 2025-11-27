@@ -6,6 +6,42 @@ import requests
 import streamlit as st
 import pandas as pd
 import torch
+import google.generativeai as genai
+
+
+# ---------------------------- Configure Gemini API ----------------------------
+# Configure your Gemini API key
+# You can set it as an environment variable or use Streamlit secrets
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY", "")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+
+def summarize_review_with_gemini(cleaned_text: str) -> str:
+    """
+    Use Gemini API to summarize the review after cleaning.
+    """
+    if not GEMINI_API_KEY:
+        return "⚠️ Gemini API key not configured. Set GEMINI_API_KEY in environment or Streamlit secrets."
+    
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        
+        prompt = f"""You are a helpful assistant that summarizes customer reviews concisely.
+
+Review: {cleaned_text}
+
+Provide a brief summary explaining what the customer thinks, focusing on the main points (e.g., taste, price, quality, service).
+Keep it short and natural. Example format: "The customer is disappointed because of taste and overprice."
+
+Summary:"""
+        
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    
+    except Exception as e:
+        return f"⚠️ Error generating summary: {e}"
 
 
 # ---------------------------- Text Preprocessing ----------------------------
@@ -133,13 +169,35 @@ if input_mode == "Single Text" and pipeline:
             st.warning("Please enter text first.")
         else:
             try:
+                # Get cleaned text (after clean_text, before tokenizing)
+                cleaned_text = clean_text(text_input)
+                
+                # Run sentiment prediction
                 result = pipeline.predict_single(text_input)
                 pred_label = getattr(pipeline, "id2label", DEFAULT_ID2LABEL).get(
                     result["pred_id"], str(result["pred_id"])
                 )
 
-                st.write("**Prediction ID:**", result["pred_id"])
-                st.write("**Predicted Label:**", pred_label)
+                # Display results
+                st.success("✅ Prediction Complete!")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("**Prediction ID:**", result["pred_id"])
+                    st.write("**Predicted Label:**", pred_label)
+                
+                with col2:
+                    st.write("**Cleaned Text:**")
+                    st.info(cleaned_text if cleaned_text else "(empty after cleaning)")
+                
+                # Generate AI summary using Gemini
+                st.write("---")
+                st.write("### 🤖 AI-Generated Summary")
+                
+                with st.spinner("Generating summary with Gemini..."):
+                    summary = summarize_review_with_gemini(cleaned_text)
+                    st.write(summary)
 
             except Exception as e:
                 st.error(f"Prediction failed: {e}")
