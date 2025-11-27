@@ -1,6 +1,6 @@
-streamlit
-pandas
-torch
-transformers
-scikit-learn
-requests
+streamlit==1.30.0
+pandas==2.1.0
+torch==2.1.0
+transformers==4.42.2
+scikit-learn==1.3.0
+requests==2.32.0
