@@ -8,25 +8,6 @@ import pandas as pd
 import torch
 
 
-# ---------------------------- Force Light Mode ----------------------------
-st.markdown("""
-<style>
-/* Force light mode globally */
-:root {
-    color-scheme: light;
-}
-body, .stApp {
-    background-color: white !important;
-    color: black !important;
-}
-[data-testid="stSidebar"] {
-    background-color: #ffffff !important;
-    color: black !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 # ---------------------------- Text Preprocessing ----------------------------
 def clean_text(text: str) -> str:
     if not isinstance(text, str):
@@ -90,7 +71,7 @@ DROPBOX_URL = "https://www.dropbox.com/scl/fi/4r5mrc3tcrthzvstjpwjn/roberta_pipe
 @st.cache_resource
 def load_pipeline():
     placeholder = st.empty()
-    placeholder.info("Downloading model…")
+    placeholder.info("Downloading model from Dropbox…")
 
     try:
         response = requests.get(DROPBOX_URL)
