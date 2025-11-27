@@ -38,7 +38,6 @@ def clean_text(text: str) -> str:
     return text
 
 
-
 # ============================ Inference Pipeline ============================
 class InferencePipeline:
     """
@@ -71,10 +70,8 @@ class InferencePipeline:
         return {"pred_id": pred_id}
 
 
-
 # Default sentiment label mapping
 DEFAULT_ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
-
 
 
 # ============================ Download Model (Google Drive) ============================
@@ -107,7 +104,6 @@ def download_model(url, filename):
         return False
 
 
-
 # ============================ Load Model ============================
 MODEL_LOADED = False
 
@@ -121,7 +117,6 @@ if download_model(MODEL_URL, MODEL_FILENAME):
         st.error(f"Failed to load model: {e}")
 else:
     st.error("Model not available.")
-
 
 
 # ============================ Streamlit Page Settings ============================
@@ -194,24 +189,15 @@ hr {
 st.markdown(page_bg, unsafe_allow_html=True)
 
 
-
 # ============================ Page Header ============================
-st.markdown(
-    "<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</h1>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    "<p style='text-align:center; color:#111827;'>Analyze individual reviews or full CSV datasets.</p>",
-    unsafe_allow_html=True
-)
+st.markdown("<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#111827;'>Analyze individual reviews or full CSV datasets.</p>", unsafe_allow_html=True)
 st.markdown("---")
-
 
 
 # ============================ Sidebar ============================
 st.sidebar.title("Configuration")
 input_mode = st.sidebar.radio("Select Input Mode:", ["Single Text", "Batch CSV"])
-
 
 
 # ============================ Single Text Prediction ============================
@@ -230,7 +216,6 @@ if input_mode == "Single Text" and pipeline:
                 st.write("**Predicted Label:**", label)
             except Exception as e:
                 st.error(f"Prediction failed: {e}")
-
 
 
 # ============================ Batch CSV Mode ============================
@@ -288,7 +273,6 @@ elif input_mode == "Batch CSV" and pipeline:
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
-
 
 
 # ============================ Footer ============================
