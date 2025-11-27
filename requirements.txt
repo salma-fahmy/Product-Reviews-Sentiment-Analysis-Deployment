@@ -3,6 +3,4 @@ pandas
 torch
 transformers
 scikit-learn
-regex
 requests
-gdown
