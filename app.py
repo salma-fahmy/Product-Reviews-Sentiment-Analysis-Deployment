@@ -26,7 +26,7 @@ def summarize_review_with_gemini(cleaned_text: str) -> str:
         return "⚠️ Gemini API key not configured. Set GEMINI_API_KEY in environment or Streamlit secrets."
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"""You are a helpful assistant that summarizes customer reviews concisely.
 
