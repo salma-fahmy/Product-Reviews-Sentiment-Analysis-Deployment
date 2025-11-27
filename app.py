@@ -1,19 +1,26 @@
 import os
 import re
 import pickle
-import gdown
+import requests
 from typing import Dict, Any
 
 import streamlit as st
 import pandas as pd
 import torch
 
+
 # ============================ Text Preprocessing ============================
 def clean_text(text: str) -> str:
+    """
+    Clean and normalize input text.
+    Removes URLs, HTML tags, emojis, and keeps only alphanumeric characters.
+    """
     if not isinstance(text, str):
         return ""
+
     text = re.sub(r'http\S+|www\S+|https\S+', '', text)
     text = re.sub(r'<.*?>', '', text)
+
     emoji_pattern = re.compile(
         "[" 
         u"\U0001F600-\U0001F64F"
@@ -23,13 +30,21 @@ def clean_text(text: str) -> str:
         u"\U00002700-\U000027BF"
         u"\U000024C2-\U0001F251"
         "]", flags=re.UNICODE)
+
     text = emoji_pattern.sub("", text)
     text = re.sub(r'[^A-Za-z0-9 ]+', ' ', text)
     text = re.sub(r'\s+', ' ', text).strip()
+
     return text
+
 
 # ============================ Inference Pipeline ============================
 class InferencePipeline:
+    """
+    Pipeline containing text cleaning, tokenization, and model inference.
+    Used for sentiment classification of product reviews.
+    """
+
     def __init__(self, model, tokenizer, clean_fn=clean_text, max_length: int = 128):
         self.model = model
         self.tokenizer = tokenizer
@@ -38,6 +53,7 @@ class InferencePipeline:
         self.model.eval()
 
     def predict_single(self, text: str) -> Dict[str, Any]:
+        """Run sentiment prediction for a single text input."""
         cleaned = self.clean_fn(text)
         encoding = self.tokenizer(
             cleaned,
@@ -50,41 +66,145 @@ class InferencePipeline:
             outputs = self.model(**encoding)
             logits = outputs.logits
             pred_id = int(torch.argmax(logits, dim=-1).item())
+
         return {"pred_id": pred_id}
 
+
+# Default sentiment label mapping
 DEFAULT_ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
 
-# ============================ Load Model via gdown ===========================
-MODEL_URL = "https://drive.google.com/uc?id=1Aggf2Hl1gEIE99W0T6I93lgDcTVRxI1N"
+
+# ============================ Download Model (Google Drive) ============================
+MODEL_URL = "https://drive.google.com/uc?export=download&id=1Aggf2Hl1gEIE99W0T6I93lgDcTVRxI1N"
 MODEL_FILENAME = "roberta_pipeline.pkl"
 pipeline = None
 
-if not os.path.exists(MODEL_FILENAME):
-    st.info("Downloading model from Google Drive...")
-    gdown.download(MODEL_URL, MODEL_FILENAME, quiet=False)
 
-try:
-    with open(MODEL_FILENAME, "rb") as f:
-        pipeline = pickle.load(f)
-    st.success("Model loaded successfully.")
-except Exception as e:
-    st.error(f"Failed to load model: {e}")
+def download_model(url, filename):
+    """
+    Download PKL model from Google Drive if not already downloaded.
+    """
+    if os.path.exists(filename):
+        return True
 
-# ============================ Streamlit UI ============================
+    try:
+        st.info("Downloading model, please wait...")
+        response = requests.get(url, allow_redirects=True)
+
+        if response.status_code == 200:
+            with open(filename, "wb") as f:
+                f.write(response.content)
+            return True
+        else:
+            st.error("Failed to download model from Google Drive.")
+            return False
+
+    except Exception as e:
+        st.error(f"Download error: {e}")
+        return False
+
+
+# ============================ Load Model ============================
+MODEL_LOADED = False
+
+if download_model(MODEL_URL, MODEL_FILENAME):
+    try:
+        with open(MODEL_FILENAME, "rb") as f:
+            pipeline = pickle.load(f)
+        MODEL_LOADED = True
+        st.success("Model loaded successfully.")
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+else:
+    st.error("Model not available.")
+
+
+# ============================ Streamlit Page Settings ============================
 st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
 
+page_bg = """
+<style>
+.stApp {
+    background: url('https://i.pinimg.com/736x/8a/4c/31/8a4c3184c5ae66e9f090f49db6bd445a.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: #111827;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #111827 !important;
+}
+
+.st-bq, .st-cy, .st-co, .stText, .stMarkdown {
+    color: #111827 !important;
+}
+
+[data-testid="stSidebar"] {
+    background-color: rgba(255, 255, 255, 0.5) !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    color: #111827 !important;
+}
+
+button[title="Collapse"] svg,
+button[title="Expand"] svg {
+    color: #111827 !important;
+}
+
+.stButton>button {
+    background: linear-gradient(90deg, #3B82F6, #60A5FA);
+    color: black;
+    font-weight: bold;
+    font-size: 18px;
+    border-radius: 10px;
+    padding: 0.6em 1.2em;
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+.stButton>button:hover {
+    background: linear-gradient(90deg, #60A5FA, #93C5FD);
+    transform: scale(1.03);
+}
+
+.stSelectbox, .stNumberInput, .stTextInput, .stDataFrame, .stFileUploader {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.stForm {
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+hr {
+    border-top: 1px solid rgba(0,0,0,0.3) !important;
+}
+</style>
+"""
+
+st.markdown(page_bg, unsafe_allow_html=True)
+
+
+# ============================ Page Header ============================
 st.markdown("<h1 style='text-align:center;'>Product Reviews Sentiment Analysis</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center;'>Analyze individual reviews or CSV files.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#111827;'>Analyze individual reviews or full CSV datasets.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Sidebar
+
+# ============================ Sidebar ============================
 st.sidebar.title("Configuration")
 input_mode = st.sidebar.radio("Select Input Mode:", ["Single Text", "Batch CSV"])
 
-# Single text mode
+
+# ============================ Single Text Prediction ============================
 if input_mode == "Single Text" and pipeline:
     st.subheader("Single Review Prediction")
     text_input = st.text_area("Enter a review:", height=120)
+
     if st.button("🔍 Predict"):
         if not text_input.strip():
             st.warning("Please enter text before predicting.")
@@ -97,45 +217,64 @@ if input_mode == "Single Text" and pipeline:
             except Exception as e:
                 st.error(f"Prediction failed: {e}")
 
-# Batch CSV mode
+
+# ============================ Batch CSV Mode ============================
 elif input_mode == "Batch CSV" and pipeline:
     st.subheader("Batch Prediction (CSV Upload)")
     csv_file = st.file_uploader("Upload CSV File", type=["csv"])
+
     text_column = "Text"
     batch_size = 64
+
     if csv_file is not None:
         try:
             df = pd.read_csv(csv_file)
             st.write("### Preview")
             st.dataframe(df.head())
+
             if text_column not in df.columns:
                 st.error(f"Column '{text_column}' not found in file.")
             else:
                 if st.button("🚀 Run Batch Prediction"):
                     texts = df[text_column].astype(str).tolist()
                     preds = []
+
                     for i in range(0, len(texts), batch_size):
                         batch = texts[i:i + batch_size]
+
                         for t in batch:
                             if t.strip() == "" or t.lower() == "nan":
                                 preds.append("empty")
                             else:
                                 p = pipeline.predict_single(t)
                                 preds.append(DEFAULT_ID2LABEL.get(p["pred_id"]))
+
                     df["pred_label"] = preds
+
                     st.success("Batch prediction completed successfully.")
                     st.dataframe(df.head(10))
+
                     counts = df["pred_label"].value_counts()
                     st.info("### Prediction Summary")
+
                     col1, col2 = st.columns(2)
                     labels = ["negative", "neutral", "positive", "empty"]
+
                     for i, lbl in enumerate(labels):
                         text = f"{lbl.capitalize()}: {counts.get(lbl, 0)}"
                         (col1 if i % 2 == 0 else col2).write(text)
+
                     csv_bytes = df.to_csv(index=False).encode("utf-8")
-                    st.download_button("Download Results CSV", data=csv_bytes, file_name="sentiment_predictions.csv")
+                    st.download_button(
+                        "Download Results CSV",
+                        data=csv_bytes,
+                        file_name="sentiment_predictions.csv"
+                    )
+
         except Exception as e:
             st.error(f"Error processing file: {e}")
 
+
+# ============================ Footer ============================
 st.markdown("---")
-st.caption("💡 This tool helps you evaluate customer review sentiment.")
+st.caption("💡 This tool helps you evaluate customer review sentiment for better product insights.")
