@@ -11,7 +11,7 @@ import google.generativeai as genai
 
 # ---------------------------- Configure Gemini API ----------------------------
 # Configure your Gemini API key
-GEMINI_API_KEY = "AIzaSyCnF-UaGJFoDLV8ANieBcfbePLUFmJv-yM"
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -312,6 +312,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
