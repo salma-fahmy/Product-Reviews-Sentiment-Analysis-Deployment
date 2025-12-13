@@ -144,7 +144,12 @@ def load_pipeline():
         response.raise_for_status()
 
         file_bytes = BytesIO(response.content)
-        pipeline = pickle.load(file_bytes)
+        # Load pickle safely on CPU
+        pipeline = torch.load(file_bytes, map_location=torch.device('cpu'))
+
+        # Ensure model inside pipeline (if exists) is on CPU
+        if hasattr(pipeline, "model"):
+            pipeline.model.to(torch.device('cpu'))
 
         placeholder.empty()
         return pipeline
@@ -155,7 +160,6 @@ def load_pipeline():
 
 
 pipeline = load_pipeline()
-
 
 # ---------------------------- Streamlit Page Setup ----------------------------
 st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
@@ -311,6 +315,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
