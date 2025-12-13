@@ -144,10 +144,10 @@ def load_pipeline():
         response.raise_for_status()
 
         file_bytes = BytesIO(response.content)
-        # Load pickle safely on CPU
-        pipeline = torch.load(file_bytes, map_location=torch.device('cpu'))
+        # Load full pickle safely on CPU
+        pipeline = pickle.load(file_bytes)
 
-        # Ensure model inside pipeline (if exists) is on CPU
+        # Ensure model inside pipeline is on CPU
         if hasattr(pipeline, "model"):
             pipeline.model.to(torch.device('cpu'))
 
@@ -315,6 +315,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
