@@ -8,84 +8,46 @@ import pandas as pd
 import torch
 import google.generativeai as genai
 
-
 # ---------------------------- Configure Gemini API ----------------------------
-# Configure your Gemini API key
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", None)
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
 def get_working_gemini_model():
-    """
-    Automatically finds a valid model that supports generateContent.
-    Avoids 404 errors permanently.
-    """
-
     try:
         models = genai.list_models()
-        valid_models = []
-
-        for m in models:
-            if hasattr(m, "supported_generation_methods"):
-                if "generateContent" in m.supported_generation_methods:
-                    valid_models.append(m.name)
-
-        if not valid_models:
-            return None
-
-        # Prefer modern/lightweight models first
+        valid_models = [m.name for m in models if hasattr(m, "supported_generation_methods") 
+                        and "generateContent" in m.supported_generation_methods]
+        if not valid_models: return None
         priority = ["flash", "lite", "pro", "gemini"]
-
         for p in priority:
             for m in valid_models:
-                if p in m.lower():
-                    return m
-
+                if p in m.lower(): return m
         return valid_models[0]
-
     except:
         return None
 
 def summarize_review_with_gemini(cleaned_text: str) -> str:
-    if not GEMINI_API_KEY:
-        return "⚠️ Gemini API key not configured."
-
+    if not GEMINI_API_KEY: return "⚠️ Gemini API key not configured."
     try:
         model_name = get_working_gemini_model()
-
         if not model_name:
-            return "❌ No Gemini model available that supports generateContent with this API key."
-
+            return "❌ No Gemini model available that supports generateContent."
         model = genai.GenerativeModel(model_name)
-
-        prompt = f"""
-        Summarize the following customer review briefly:
-
-        Review: {cleaned_text}
-
-        Summary:
-        """
-
+        prompt = f"Summarize the following customer review briefly:\n\nReview: {cleaned_text}\n\nSummary:"
         response = model.generate_content(prompt)
         return response.text.strip()
-
     except Exception as e:
         return f"⚠️ Error generating summary: {e}"
 
-
-
 # ---------------------------- Text Preprocessing ----------------------------
 def clean_text(text: str) -> str:
-    if not isinstance(text, str):
-        return ""
-
+    if not isinstance(text, str): return ""
     text = re.sub(r'http\S+|www\S+|https\S+', '', text)
     text = re.sub(r'<.*?>', '', text)
-
     emoji_pattern = re.compile(
-        "["
-        u"\U0001F600-\U0001F64F"
+        "[" u"\U0001F600-\U0001F64F"
         u"\U0001F300-\U0001F5FF"
         u"\U0001F680-\U0001F6FF"
         u"\U0001F1E0-\U0001F1FF"
@@ -93,12 +55,8 @@ def clean_text(text: str) -> str:
         u"\U000024C2-\U0001F251"
         "]+", flags=re.UNICODE)
     text = emoji_pattern.sub("", text)
-
     text = re.sub(r'[^A-Za-z0-9 ]+', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-
-    return text
-
+    return re.sub(r'\s+', ' ', text).strip()
 
 # ---------------------------- Inference Pipeline ----------------------------
 class InferencePipeline:
@@ -111,27 +69,17 @@ class InferencePipeline:
 
     def predict_single(self, text):
         cleaned = self.clean_fn(text)
-        enc = self.tokenizer(
-            cleaned,
-            truncation=True,
-            padding="max_length",
-            max_length=self.max_length,
-            return_tensors="pt"
-        )
-
+        enc = self.tokenizer(cleaned, truncation=True, padding="max_length",
+                             max_length=self.max_length, return_tensors="pt")
         with torch.no_grad():
             out = self.model(**enc)
             logits = out.logits
             pred_id = int(torch.argmax(logits, dim=-1).item())
-
         return {"pred_id": pred_id}
 
-
-# ---------------- Label Mapping ----------------
 DEFAULT_ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
 
-
-# ---------------- Load Model from GitHub ----------------
+# ---------------------------- Load Model from GitHub ----------------------------
 GITHUB_URL = "https://github.com/salma-fahmy/Product-Reviews-Sentiment-Analysis-Deployment/raw/main/model_bundle.pkl"
 
 @st.cache_resource
@@ -142,13 +90,12 @@ def load_pipeline():
     try:
         response = requests.get(GITHUB_URL)
         response.raise_for_status()
-
         file_bytes = BytesIO(response.content)
-        
-        # فك pickle كامل (بدون torch.load)
-        pipeline = pickle.load(file_bytes)
 
-        # التأكد إن أي موديل داخل pipeline على CPU
+        # Load full pickle safely on CPU
+        pipeline = torch.load(file_bytes, map_location=torch.device('cpu'), weights_only=False)
+
+        # Move internal model to CPU if exists
         if hasattr(pipeline, "model"):
             pipeline.model.to(torch.device('cpu'))
 
@@ -160,6 +107,7 @@ def load_pipeline():
         return None
 
 pipeline = load_pipeline()
+
 
 # ---------------------------- Streamlit Page Setup ----------------------------
 st.set_page_config(page_title="Product Reviews Sentiment Analysis", layout="wide")
@@ -315,6 +263,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
