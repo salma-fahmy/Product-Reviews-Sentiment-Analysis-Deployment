@@ -93,18 +93,39 @@ def load_pipeline():
         file_bytes = BytesIO(response.content)
 
         # ----------------------------
-        # Load the pipeline safely on CPU
+        # 1. استخدام map_location عند التحميل
         # ----------------------------
+        # map_location هو المفتاح الرئيسي لنقل التخزين إلى CPU
         pipeline = torch.load(file_bytes, map_location=torch.device('cpu'), weights_only=False)
 
-        # Ensure internal model is on CPU too
+        # ----------------------------
+        # 2. تعيين النموذج الداخلي (الذي تم تحميله بالفعل) إلى CPU مرة أخرى
+        #    للتأكد من أن أي مكونات فرعية لا تزال تشير إلى CUDA
+        # ----------------------------
         if hasattr(pipeline, "model"):
+            # نقوم بالتحويل الصريح إلى CPU
             pipeline.model.to(torch.device('cpu'))
 
+        # ----------------------------
+        # 3. التحقق من أي state_dict داخلي قد يحتاج إلى تحويل
+        #    هذا يضيف طبقة إضافية من الأمان للنماذج المعقدة
+        # ----------------------------
+        if hasattr(pipeline.model, 'state_dict'):
+            state_dict = pipeline.model.state_dict()
+            for key in state_dict:
+                if state_dict[key].is_cuda:
+                    state_dict[key] = state_dict[key].to(torch.device('cpu'))
+            
+            # إعادة تحميل الـ state_dict المحوّل إلى النموذج
+            pipeline.model.load_state_dict(state_dict)
+
+
         placeholder.empty()
+        st.success("✅ Model loaded successfully on CPU!")
         return pipeline
 
     except Exception as e:
+        # ملاحظة: إذا كان الخطأ ما زال يظهر، فعلى الأغلب ستحتاج للعودة للحل رقم 1.
         placeholder.error(f"❌ Failed to load model: {e}")
         return None
 
@@ -264,6 +285,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
