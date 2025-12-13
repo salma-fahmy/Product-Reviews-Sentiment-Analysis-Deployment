@@ -144,9 +144,9 @@ def load_pipeline():
         response.raise_for_status()
 
         file_bytes = BytesIO(response.content)
-
-        # تحميل الموديل بالكامل على CPU، حتى لو تم حفظه على GPU
-        pipeline = torch.load(file_bytes, map_location=torch.device('cpu'), weights_only=False)
+        
+        # فك pickle كامل (بدون torch.load)
+        pipeline = pickle.load(file_bytes)
 
         # التأكد إن أي موديل داخل pipeline على CPU
         if hasattr(pipeline, "model"):
@@ -315,6 +315,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
