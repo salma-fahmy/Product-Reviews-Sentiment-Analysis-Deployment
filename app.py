@@ -131,17 +131,16 @@ class InferencePipeline:
 DEFAULT_ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
 
 
-# ---------------- Load Model from Dropbox ----------------
-DROPBOX_URL = "https://www.dropbox.com/scl/fi/4r5mrc3tcrthzvstjpwjn/roberta_pipeline.pkl?rlkey=i5vli1htkljftqqcou8myu8y5&st=xyk2aahu&dl=1"
-
+# ---------------- Load Model from GitHub ----------------
+GITHUB_URL = "https://github.com/salma-fahmy/Product-Reviews-Sentiment-Analysis-Deployment/raw/main/model_bundle.pkl"
 
 @st.cache_resource
 def load_pipeline():
     placeholder = st.empty()
-    placeholder.info("Downloading model from Dropbox…")
+    placeholder.info("Downloading model from GitHub…")
 
     try:
-        response = requests.get(DROPBOX_URL)
+        response = requests.get(GITHUB_URL)
         response.raise_for_status()
 
         file_bytes = BytesIO(response.content)
@@ -312,6 +311,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
