@@ -144,10 +144,11 @@ def load_pipeline():
         response.raise_for_status()
 
         file_bytes = BytesIO(response.content)
-        # Load full pickle safely on CPU
-        pipeline = pickle.load(file_bytes)
 
-        # Ensure model inside pipeline is on CPU
+        # تحميل الموديل على CPU فقط
+        pipeline = torch.load(file_bytes, map_location=torch.device('cpu'))
+
+        # لو pipeline يحتوي على موديل داخلي
         if hasattr(pipeline, "model"):
             pipeline.model.to(torch.device('cpu'))
 
@@ -157,7 +158,6 @@ def load_pipeline():
     except Exception as e:
         placeholder.error(f"❌ Failed to load model: {e}")
         return None
-
 
 pipeline = load_pipeline()
 
@@ -315,6 +315,7 @@ elif input_mode == "Batch CSV" and pipeline:
 # ---------------------------- Footer ----------------------------
 st.markdown("---")
 st.caption("💡 This app predicts sentiment for product reviews using a fine-tuned RoBERTa model.")
+
 
 
 
